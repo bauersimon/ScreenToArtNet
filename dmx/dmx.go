@@ -3,9 +3,6 @@ package dmx
 import (
 	"fmt"
 	"image/color"
-	"net"
-
-	"github.com/jsimonetti/go-artnet/packet"
 )
 
 // RGBaddress holds the artnet address of an rgb device.
@@ -48,58 +45,12 @@ func (addr RGBaddress) Verify() error {
 	return nil
 }
 
-// Controller holds the network data of the artnet controller.
-type Controller struct {
-	node *net.UDPAddr
-	gate *net.UDPConn
-}
-
 // SendColorUpdate sends a color update to the given device with the given artnet controller.
-func SendColorUpdate(controller *Controller, device RGBaddress, color color.RGBA) error {
-	dmxFrame := [512]byte{0x00, 0x00, 0x00, 0x00, 0x00}
-	dmxFrame[device.R] = color.R
-	dmxFrame[device.G] = color.G
-	dmxFrame[device.B] = color.B
+func SendColorUpdate(controller *ArtNetController, device RGBaddress, color color.RGBA) error {
+	var frame DmxFrame
+	frame[device.R] = color.R
+	frame[device.G] = color.G
+	frame[device.B] = color.B
 
-	// TODO How to target the universe.
-	p := &packet.ArtDMXPacket{
-		SubUni: device.SubNet,
-		Net:    device.Universe,
-		Data:   dmxFrame,
-	}
-
-	b, err := p.MarshalBinary()
-	if err != nil {
-		return err
-	}
-
-	_, err = controller.gate.WriteTo(b, controller.node)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// NewArtNetController registers a new artnet node on this device to control the given artnet subnet.
-func NewArtNetController(src string, dst string) (*Controller, error) {
-	nodeAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", dst, packet.ArtNetPort))
-	if err != nil {
-		return nil, err
-	}
-
-	localAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", src, packet.ArtNetPort))
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := net.ListenUDP("udp", localAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Controller{
-		node: nodeAddr,
-		gate: conn,
-	}, nil
+	return controller.SendDmx(frame, device.Net, device.SubNet)
 }

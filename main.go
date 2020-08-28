@@ -18,7 +18,7 @@ import (
 
 // Ambilight holds all the information of an ambilight.
 type Ambilight struct {
-	Controller *dmx.Controller
+	Controller *dmx.ArtNetController
 	Screen     capture.Screen
 	Devices    []dmx.RGBaddress
 }
