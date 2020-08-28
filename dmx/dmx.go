@@ -3,103 +3,70 @@ package dmx
 import (
 	"fmt"
 	"image/color"
-	"net"
-
-	"github.com/jsimonetti/go-artnet/packet"
 )
 
-// RGBaddress holds the artnet address of an rgb device.
-type RGBaddress struct {
+// Device holds the artnet address of an rgb device.
+type Device struct {
+	// R holds the red channel.
 	R uint16 `json:"red"`
+	// G holds the green channel.
 	G uint16 `json:"green"`
+	// B holds the blue channel.
 	B uint16 `json:"blue"`
 
-	Net      uint8 `json:"net"`
-	SubNet   uint8 `json:"subnet"`
-	Universe uint8 `json:"universe"`
+	// Statics holds the static DMX data for this device
+	Statics map[uint16]uint8 `json:"statics"`
+
+	// Net holds the ArtNet net, a group of 16 consecutive sub-nets or 256 consecutive universes.
+	Net uint8 `json:"net"`
+	// SubNet holds the ArtNet sub-net, a group of 16 consecutive universes.
+	SubNet uint8 `json:"subnet"`
 }
 
-// Verify checks if the RGBaddress is a valid artnet device.
-func (addr RGBaddress) Verify() error {
-	if addr.R > 511 {
-		return fmt.Errorf("rgb device red channel outside of dmx frame (channel=%v)", addr.R)
+// Verify checks if the Device is a valid ArtNet device.
+func (d *Device) Verify() error {
+	if d.R > 511 {
+		return fmt.Errorf("rgb device red channel outside of DMX frame (channel=%v)", d.R)
 	}
-	if addr.G > 511 {
-		return fmt.Errorf("rgb device green channel outside of dmx frame (channel=%v)", addr.G)
+	if d.G > 511 {
+		return fmt.Errorf("rgb device green channel outside of DMX frame (channel=%v)", d.G)
 	}
-	if addr.B > 511 {
-		return fmt.Errorf("rgb device blue channel outside of dmx frame (channel=%v)", addr.B)
-	}
-
-	if !(addr.R != addr.G && addr.G != addr.B && addr.R != addr.B) {
-		return fmt.Errorf("channels should be different (r=%v, g=%v, b=%v)", addr.R, addr.G, addr.B)
+	if d.B > 511 {
+		return fmt.Errorf("rgb device blue channel outside of DMX frame (channel=%v)", d.B)
 	}
 
-	if addr.Net > 127 {
-		return fmt.Errorf("invalid artnet net (net=%v)", addr.Net)
+	if !(d.R != d.G && d.G != d.B && d.R != d.B) {
+		return fmt.Errorf("channels should be different (r=%v, g=%v, b=%v)", d.R, d.G, d.B)
 	}
-	if addr.SubNet > 15 {
-		return fmt.Errorf("invalid artnet subnet (subnet=%v)", addr.SubNet)
+
+	if d.Net > 127 {
+		return fmt.Errorf("invalid ArtNet net (net=%v)", d.Net)
 	}
-	if addr.Universe > 15 {
-		return fmt.Errorf("invalid artnet universe (universe=%v)", addr.Universe)
+	if d.SubNet > 15 {
+		return fmt.Errorf("invalid ArtNet subnet (subnet=%v)", d.SubNet)
+	}
+
+	for channel, value := range d.Statics {
+		if channel > 511 {
+			return fmt.Errorf("invalid static channel outside of DMX frame (channel=%v)", channel)
+		} else if value > 255 {
+			return fmt.Errorf("invalid static channel value of channel %v (channel=%v)", channel, value)
+		}
 	}
 
 	return nil
-}
-
-// Controller holds the network data of the artnet controller.
-type Controller struct {
-	node *net.UDPAddr
-	gate *net.UDPConn
 }
 
 // SendColorUpdate sends a color update to the given device with the given artnet controller.
-func SendColorUpdate(controller *Controller, device RGBaddress, color color.RGBA) error {
-	dmxFrame := [512]byte{0x00, 0x00, 0x00, 0x00, 0x00}
-	dmxFrame[device.R] = color.R
-	dmxFrame[device.G] = color.G
-	dmxFrame[device.B] = color.B
+func SendColorUpdate(controller *ArtNetController, device *Device, color color.RGBA) error {
+	var frame DMXFrame
+	frame[device.R] = color.R
+	frame[device.G] = color.G
+	frame[device.B] = color.B
 
-	// TODO How to target the universe.
-	p := &packet.ArtDMXPacket{
-		SubUni: device.SubNet,
-		Net:    device.Universe,
-		Data:   dmxFrame,
+	for channel, value := range device.Statics {
+		frame[channel] = value
 	}
 
-	b, err := p.MarshalBinary()
-	if err != nil {
-		return err
-	}
-
-	_, err = controller.gate.WriteTo(b, controller.node)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// NewArtNetController registers a new artnet node on this device to control the given artnet subnet.
-func NewArtNetController(src string, dst string) (*Controller, error) {
-	nodeAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", dst, packet.ArtNetPort))
-	if err != nil {
-		return nil, err
-	}
-
-	localAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", src, packet.ArtNetPort))
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := net.ListenUDP("udp", localAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Controller{
-		node: nodeAddr,
-		gate: conn,
-	}, nil
+	return controller.SendDMX(frame, device.Net, device.SubNet)
 }

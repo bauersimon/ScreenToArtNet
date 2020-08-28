@@ -18,13 +18,13 @@ import (
 
 // Ambilight holds all the information of an ambilight.
 type Ambilight struct {
-	Controller *dmx.Controller
+	Controller *dmx.ArtNetController
 	Screen     capture.Screen
-	Devices    []dmx.RGBaddress
+	Devices    []*dmx.Device
 }
 
 // NewAmbilight creates a new ambilight with the given configuration.
-func NewAmbilight(areas []image.Rectangle, devices []dmx.RGBaddress, src string, dst string, screen int) (Ambilight, error) {
+func NewAmbilight(areas []image.Rectangle, devices []*dmx.Device, src string, dst string, screen int) (Ambilight, error) {
 	c, err := dmx.NewArtNetController(src, dst)
 	if err != nil {
 		return Ambilight{}, err
@@ -44,7 +44,7 @@ func NewAmbilight(areas []image.Rectangle, devices []dmx.RGBaddress, src string,
 	}, nil
 }
 
-func unmarshalConfig(data json.RawMessage) (areas []image.Rectangle, devices []dmx.RGBaddress, err error) {
+func unmarshalConfig(data json.RawMessage) (areas []image.Rectangle, devices []*dmx.Device, err error) {
 	var definitions []map[string]json.RawMessage
 
 	err = json.Unmarshal(data, &definitions)
@@ -69,7 +69,7 @@ func unmarshalConfig(data json.RawMessage) (areas []image.Rectangle, devices []d
 			return nil, nil, fmt.Errorf("missing device entry for: %v", entry)
 		}
 
-		var device dmx.RGBaddress
+		var device *dmx.Device
 		err = json.Unmarshal(deviceRaw, &device)
 		if err != nil {
 			return nil, nil, err
