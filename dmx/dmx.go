@@ -5,7 +5,7 @@ import (
 	"image/color"
 )
 
-// Device holds the artnet address of an rgb device.
+// Device holds the DMX data of an rgb device.
 type Device struct {
 	// R holds the red channel.
 	R uint16 `json:"red"`
@@ -23,20 +23,20 @@ type Device struct {
 	SubNet uint8 `json:"subnet"`
 }
 
-// Verify checks if the Device is a valid ArtNet device.
+// Verify checks if the Device is a valid DMX device.
 func (d *Device) Verify() error {
 	if d.R > 511 {
-		return fmt.Errorf("rgb device red channel outside of DMX frame (channel=%v)", d.R)
+		return fmt.Errorf("red channel outside of DMX range (channel=%v)", d.R)
 	}
 	if d.G > 511 {
-		return fmt.Errorf("rgb device green channel outside of DMX frame (channel=%v)", d.G)
+		return fmt.Errorf("green channel outside of DMX range (channel=%v)", d.G)
 	}
 	if d.B > 511 {
-		return fmt.Errorf("rgb device blue channel outside of DMX frame (channel=%v)", d.B)
+		return fmt.Errorf("blue channel outside of DMX range (channel=%v)", d.B)
 	}
 
 	if !(d.R != d.G && d.G != d.B && d.R != d.B) {
-		return fmt.Errorf("channels should be different (r=%v, g=%v, b=%v)", d.R, d.G, d.B)
+		return fmt.Errorf("color channels should be different (r=%v, g=%v, b=%v)", d.R, d.G, d.B)
 	}
 
 	if d.Net > 127 {
@@ -48,9 +48,9 @@ func (d *Device) Verify() error {
 
 	for channel, value := range d.Statics {
 		if channel > 511 {
-			return fmt.Errorf("invalid static channel outside of DMX frame (channel=%v)", channel)
+			return fmt.Errorf("invalid static channel outside of DMX range (channel=%v)", channel)
 		} else if value > 255 {
-			return fmt.Errorf("invalid static channel value of channel %v (channel=%v)", channel, value)
+			return fmt.Errorf("invalid static channel value of channel %v (value=%v)", channel, value)
 		}
 	}
 
