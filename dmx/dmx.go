@@ -2,25 +2,26 @@ package dmx
 
 import (
 	"fmt"
-	"image/color"
 )
 
 // Device holds the DMX data of an rgb device.
 type Device struct {
 	// R holds the red channel.
-	R uint16 `json:"red"`
+	R uint16 `json:"Red"`
 	// G holds the green channel.
-	G uint16 `json:"green"`
+	G uint16 `json:"Green"`
 	// B holds the blue channel.
-	B uint16 `json:"blue"`
+	B uint16 `json:"Blue"`
+
+	// RValue holds the red value.
+	RValue uint8
+	// RValue holds the green value.
+	GValue uint8
+	// RValue holds the blue value.
+	BValue uint8
 
 	// Statics holds the static DMX data for this device
-	Statics map[uint16]uint8 `json:"statics"`
-
-	// Net holds the ArtNet net, a group of 16 consecutive sub-nets or 256 consecutive universes.
-	Net uint8 `json:"net"`
-	// SubNet holds the ArtNet sub-net, a group of 16 consecutive universes.
-	SubNet uint8 `json:"subnet"`
+	Statics map[uint16]uint8
 }
 
 // Verify checks if the Device is a valid DMX device.
@@ -39,34 +40,22 @@ func (d *Device) Verify() error {
 		return fmt.Errorf("color channels should be different (r=%v, g=%v, b=%v)", d.R, d.G, d.B)
 	}
 
-	if d.Net > 127 {
-		return fmt.Errorf("invalid ArtNet net (net=%v)", d.Net)
-	}
-	if d.SubNet > 15 {
-		return fmt.Errorf("invalid ArtNet subnet (subnet=%v)", d.SubNet)
-	}
-
-	for channel, value := range d.Statics {
+	for channel := range d.Statics {
 		if channel > 511 {
 			return fmt.Errorf("invalid static channel outside of DMX range (channel=%v)", channel)
-		} else if value > 255 {
-			return fmt.Errorf("invalid static channel value of channel %v (value=%v)", channel, value)
 		}
 	}
 
 	return nil
 }
 
-// SendColorUpdate sends a color update to the given device with the given artnet controller.
-func SendColorUpdate(controller *ArtNetController, device *Device, color color.RGBA) error {
-	var frame DMXFrame
-	frame[device.R] = color.R
-	frame[device.G] = color.G
-	frame[device.B] = color.B
+// UpdateFrame updates the given DMX frame with the current channel values.
+func (d *Device) UpdateFrame(frame *DMXFrame) {
+	frame[d.R] = d.RValue
+	frame[d.G] = d.GValue
+	frame[d.B] = d.BValue
 
-	for channel, value := range device.Statics {
+	for channel, value := range d.Statics {
 		frame[channel] = value
 	}
-
-	return controller.SendDMX(frame, device.Net, device.SubNet)
 }

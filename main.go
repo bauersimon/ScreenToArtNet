@@ -134,16 +134,9 @@ func main() {
 	}()
 
 	for {
-		colors, err := ambi.Screen.GetColors(*spacing, *threshold)
+		_, err := ambi.Screen.GetColors(*spacing, *threshold)
 		if err != nil {
 			panic(err)
-		}
-
-		for i, d := range ambi.Devices {
-			err := dmx.SendColorUpdate(ambi.Controller, d, colors[i])
-			if err != nil {
-				panic(err)
-			}
 		}
 
 		if *pause > 0 {
