@@ -1,4 +1,4 @@
-module github.com/bauersimon/ambilight
+module github.com/bauersimon/ScreenToArtNet
 
 go 1.13
 

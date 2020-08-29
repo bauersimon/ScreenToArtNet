@@ -12,8 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bauersimon/ambilight/capture"
-	"github.com/bauersimon/ambilight/dmx"
+	"github.com/bauersimon/ScreenToArtNet/capture"
+	"github.com/bauersimon/ScreenToArtNet/dmx"
 )
 
 // Ambilight holds all the information of an ambilight.
