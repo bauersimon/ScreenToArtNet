@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/bauersimon/ScreenToArtNet/dmx"
@@ -15,6 +16,9 @@ import (
 
 func run() error {
 	areas, universes, mapping, err := ambilight.ReadConfig(*args.Config)
+	if err != nil {
+		return err
+	}
 
 	s := capture.NewScreen(
 		areas,
@@ -44,6 +48,27 @@ func run() error {
 	}
 
 	return a.Go()
+}
+
+func preview() error {
+	areas, _, _, err := ambilight.ReadConfig(*args.Config)
+	if err != nil {
+		return err
+	}
+
+	s := capture.NewScreen(
+		areas,
+		capture.CaptureConfig{
+			Monitor: *args.Screen,
+		},
+	)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	return s.SavePreview(filepath.Join(cwd, "preview"))
 }
 
 var args = struct {
@@ -88,12 +113,17 @@ func main() {
 		if err != nil {
 			crash(err)
 		}
+	case "preview":
+		err := preview()
+		if err != nil {
+			crash(err)
+		}
 	default:
 		fmt.Printf("unknown mode: %s", *args.Mode)
 	}
 }
 
 func crash(err error) {
-	fmt.Printf("encountered error:\n%s", err.Error())
+	fmt.Printf("encountered error:\n%s\n", err.Error())
 	os.Exit(-1)
 }
