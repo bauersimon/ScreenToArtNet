@@ -124,6 +124,6 @@ func main() {
 }
 
 func crash(err error) {
-	fmt.Printf("encountered error:\n%s", err.Error())
+	fmt.Printf("encountered error:\n%s\n", err.Error())
 	os.Exit(-1)
 }

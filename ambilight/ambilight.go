@@ -1,7 +1,6 @@
 package ambilight
 
 import (
-	"fmt"
 	"image"
 	"time"
 
@@ -40,7 +39,8 @@ func (a *Ambilight) Go() error {
 		for i, c := range colors {
 			devices, ok := a.Mappings[a.Screen.Areas[i]]
 			if !ok {
-				return fmt.Errorf("cannot find devices for area: %p", a.Screen.Areas[i])
+				// This area has no devices mapped.
+				continue
 			}
 
 			for _, d := range devices {
