@@ -1,6 +1,7 @@
 package ambilight
 
 import (
+	"fmt"
 	"image"
 	"time"
 
@@ -30,6 +31,11 @@ type AmbilightConfiguration struct {
 
 // Go fires up the ambilight.
 func (a *Ambilight) Go() error {
+	// Data for the dynamic performance display.
+	iter := 0
+	maxIter := 10
+	start := time.Now()
+
 	for {
 		colors, err := a.Screen.GetColors()
 		if err != nil {
@@ -59,6 +65,19 @@ func (a *Ambilight) Go() error {
 
 		if a.Config.Sleep > 0 {
 			time.Sleep(time.Duration(a.Config.Sleep) * time.Millisecond)
+		}
+
+		// Handle the performance display
+		if iter == maxIter {
+			diff := time.Since(start).Seconds()
+			updates := float64(iter) / diff
+			fmt.Printf("%.2f updates/sec\r", updates)
+			maxIter = int(updates) * 5 // We will perform roughly one print every 5 seconds.
+
+			iter = 0
+			start = time.Now()
+		} else {
+			iter++
 		}
 	}
 }
