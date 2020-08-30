@@ -15,6 +15,9 @@ import (
 
 func run() error {
 	areas, universes, mapping, err := ambilight.ReadConfig(*args.Config)
+	if err != nil {
+		return err
+	}
 
 	s := capture.NewScreen(
 		areas,
