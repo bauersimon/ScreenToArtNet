@@ -13,7 +13,9 @@ func BenchmarkCapture(b *testing.B) {
 				Max: image.Point{800, 600},
 			},
 		},
-		0,
+		CaptureConfig{
+			Monitor: 1,
+		},
 	)
 
 	spacings := map[string]int{
@@ -25,7 +27,8 @@ func BenchmarkCapture(b *testing.B) {
 	for name, space := range spacings {
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				s.GetColors(space, 0)
+				s.Config.Spacing = space
+				s.GetColors()
 			}
 		})
 	}

@@ -12,20 +12,37 @@ import (
 
 // Screen represents a tiled screen.
 type Screen struct {
-	Areas   []*image.Rectangle
+	// Areas holds the screen areas.
+	Areas []*image.Rectangle
+	// Borders holds the capturing borders.
 	Borders image.Rectangle
+
+	// Config holds the configuration for the screen capture.
+	Config CaptureConfig
+}
+
+// CaptureConfig holds the configuration for the screen capture.
+type CaptureConfig struct {
+	// Spacing holds the averaging spacing.
+	Spacing int
+	// Threshold holds the averaged color threshold.
+	Threshold int
+
+	// Monitor holds the monitor used for capture.
+	Monitor int
 }
 
 // NewScreen returns a new screen, tiled with the given configuration.
-func NewScreen(areas []*image.Rectangle, monitor int) *Screen {
+func NewScreen(areas []*image.Rectangle, config CaptureConfig) *Screen {
 	return &Screen{
 		Areas:   areas,
-		Borders: screenshot.GetDisplayBounds(monitor),
+		Borders: screenshot.GetDisplayBounds(config.Monitor),
+		Config:  config,
 	}
 }
 
 // GetColors returns an averaged color per screen tile.
-func (s Screen) GetColors(space int, threshold int) ([]color.RGBA, error) {
+func (s Screen) GetColors() ([]color.RGBA, error) {
 	var colors []color.RGBA
 
 	monitor, err := screenshot.CaptureRect(s.Borders)
@@ -36,7 +53,7 @@ func (s Screen) GetColors(space int, threshold int) ([]color.RGBA, error) {
 	for _, b := range s.Areas {
 		area := monitor.SubImage(*b).(*image.RGBA)
 
-		c, err := averageRGBA(area, space, threshold)
+		c, err := averageRGBA(area, s.Config.Spacing, s.Config.Threshold)
 		if err != nil {
 			return nil, err
 		}
