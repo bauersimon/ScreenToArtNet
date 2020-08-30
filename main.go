@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/bauersimon/ScreenToArtNet/dmx"
@@ -49,6 +50,27 @@ func run() error {
 	return a.Go()
 }
 
+func preview() error {
+	areas, _, _, err := ambilight.ReadConfig(*args.Config)
+	if err != nil {
+		return err
+	}
+
+	s := capture.NewScreen(
+		areas,
+		capture.CaptureConfig{
+			Monitor: *args.Screen,
+		},
+	)
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	return s.SavePreview(filepath.Join(cwd, "preview"))
+}
+
 var args = struct {
 	Mode      *string
 	Src       *string
@@ -88,6 +110,11 @@ func main() {
 	switch *args.Mode {
 	case "run":
 		err := run()
+		if err != nil {
+			crash(err)
+		}
+	case "preview":
+		err := preview()
 		if err != nil {
 			crash(err)
 		}

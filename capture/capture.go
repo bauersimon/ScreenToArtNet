@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"os"
+	"path/filepath"
 
 	"github.com/kbinani/screenshot"
 )
@@ -41,19 +42,31 @@ func NewScreen(areas []*image.Rectangle, config CaptureConfig) *Screen {
 	}
 }
 
+func (s *Screen) capture() (areas []*image.RGBA, monitor *image.RGBA, err error) {
+	monitor, err = screenshot.CaptureRect(s.Borders)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	areas = make([]*image.RGBA, len(s.Areas))
+	for i, b := range s.Areas {
+		areas[i] = monitor.SubImage(*b).(*image.RGBA)
+	}
+
+	return areas, monitor, nil
+}
+
 // GetColors returns an averaged color per screen tile.
-func (s Screen) GetColors() ([]color.RGBA, error) {
+func (s *Screen) GetColors() ([]color.RGBA, error) {
 	var colors []color.RGBA
 
-	monitor, err := screenshot.CaptureRect(s.Borders)
+	areas, _, err := s.capture()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, b := range s.Areas {
-		area := monitor.SubImage(*b).(*image.RGBA)
-
-		c, err := averageRGBA(area, s.Config.Spacing, s.Config.Threshold)
+	for _, a := range areas {
+		c, err := averageRGBA(a, s.Config.Spacing, s.Config.Threshold)
 		if err != nil {
 			return nil, err
 		}
@@ -62,6 +75,46 @@ func (s Screen) GetColors() ([]color.RGBA, error) {
 	}
 
 	return colors, nil
+}
+
+// SavePreview saves the current capture configurations as multiple ".png" images at the given path.
+func (s *Screen) SavePreview(dst string) error {
+	areas, monitor, err := s.capture()
+	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+
+	err = saveArea(filepath.Join(dst, "monitor.png"), monitor)
+	if err != nil {
+		return err
+	}
+
+	for i, a := range areas {
+		err = saveArea(filepath.Join(dst, fmt.Sprintf("area%d.png", i)), a)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func saveArea(dst string, area *image.RGBA) error {
+	outputFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+
+	err = png.Encode(outputFile, area)
+	if err != nil {
+		return err
+	}
+
+	return outputFile.Close()
 }
 
 func averageRGBA(area *image.RGBA, space int, threshold int) (color.RGBA, error) {
@@ -104,19 +157,4 @@ func averageRGBA(area *image.RGBA, space int, threshold int) (color.RGBA, error)
 		B: uint8(b / count),
 		A: 255,
 	}, nil
-}
-
-func saveImage(dst string, img *image.RGBA) {
-	// outputFile is a File type which satisfies Writer interface
-	outputFile, err := os.Create(dst)
-	if err != nil {
-		panic(err)
-	}
-
-	// Encode takes a writer interface and an image interface
-	// We pass it the File and the RGBA
-	png.Encode(outputFile, img)
-
-	// Don't forget to close files
-	outputFile.Close()
 }
