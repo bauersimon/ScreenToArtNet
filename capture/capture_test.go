@@ -7,8 +7,8 @@ import (
 
 func BenchmarkCapture(b *testing.B) {
 	s := NewScreen(
-		[]image.Rectangle{
-			image.Rectangle{
+		[]*image.Rectangle{
+			&image.Rectangle{
 				Min: image.Point{0, 0},
 				Max: image.Point{800, 600},
 			},

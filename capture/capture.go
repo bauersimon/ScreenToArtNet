@@ -12,13 +12,13 @@ import (
 
 // Screen represents a tiled screen.
 type Screen struct {
-	Areas   []image.Rectangle
+	Areas   []*image.Rectangle
 	Borders image.Rectangle
 }
 
 // NewScreen returns a new screen, tiled with the given configuration.
-func NewScreen(areas []image.Rectangle, monitor int) Screen {
-	return Screen{
+func NewScreen(areas []*image.Rectangle, monitor int) *Screen {
+	return &Screen{
 		Areas:   areas,
 		Borders: screenshot.GetDisplayBounds(monitor),
 	}
@@ -34,7 +34,7 @@ func (s Screen) GetColors(space int, threshold int) ([]color.RGBA, error) {
 	}
 
 	for _, b := range s.Areas {
-		area := monitor.SubImage(b).(*image.RGBA)
+		area := monitor.SubImage(*b).(*image.RGBA)
 
 		c, err := averageRGBA(area, space, threshold)
 		if err != nil {
