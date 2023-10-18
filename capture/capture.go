@@ -4,136 +4,106 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
-	"os"
-	"path/filepath"
 
 	"github.com/kbinani/screenshot"
 )
 
+var NO_IMAGE image.RGBA
+
 // Screen represents a tiled screen.
 type Screen struct {
 	// Areas holds the screen areas.
-	Areas []*image.Rectangle
-	// Borders holds the capturing borders.
-	Borders image.Rectangle
-
-	// Config holds the configuration for the screen capture.
-	Config CaptureConfig
+	Areas []Area
+	// Last capture
+	captureImage *image.RGBA
+	// Whole monitor image data
+	ImageData ImageData
 }
 
-// CaptureConfig holds the configuration for the screen capture.
-type CaptureConfig struct {
-	// Spacing holds the averaging spacing.
-	Spacing int
-	// Threshold holds the averaged color threshold.
-	Threshold int
+type Area struct {
+	Name      string
+	ImageData ImageData
+}
 
-	// Monitor holds the monitor used for capture.
-	Monitor int
+type ImageData struct {
+	config  imageDataConfig
+	image   **image.RGBA
+	color   *color.RGBA
+	Borders image.Rectangle
 }
 
 // NewScreen returns a new screen, tiled with the given configuration.
-func NewScreen(areas []*image.Rectangle, config CaptureConfig) *Screen {
-	return &Screen{
-		Areas:   areas,
+func NewScreen(areas []Area, config CaptureConfig) *Screen {
+
+	screen := Screen{
+		Areas:        areas,
+		captureImage: &NO_IMAGE,
+	}
+
+	// init monitor image data with pointer to capture
+	screen.ImageData = ImageData{
+		config:  config.imageDataConfig,
+		image:   &screen.captureImage,
 		Borders: screenshot.GetDisplayBounds(config.Monitor),
-		Config:  config,
 	}
+
+	// init area image data with pointer to capture
+	for i := range areas {
+		areas[i].ImageData.config = config.imageDataConfig
+		areas[i].ImageData.image = &screen.captureImage
+	}
+
+	return &screen
 }
 
-func (s *Screen) capture() (areas []*image.RGBA, monitor *image.RGBA, err error) {
-	monitor, err = screenshot.CaptureRect(s.Borders)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	areas = make([]*image.RGBA, len(s.Areas))
-	for i, b := range s.Areas {
-		areas[i] = monitor.SubImage(*b).(*image.RGBA)
-	}
-
-	return areas, monitor, nil
-}
-
-// GetColors returns an averaged color per screen tile.
-func (s *Screen) GetColors() ([]color.RGBA, error) {
-	var colors []color.RGBA
-
-	areas, _, err := s.capture()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, a := range areas {
-		c, err := averageRGBA(a, s.Config.Spacing, s.Config.Threshold)
-		if err != nil {
-			return nil, err
-		}
-
-		colors = append(colors, c)
-	}
-
-	return colors, nil
-}
-
-// SavePreview saves the current capture configurations as multiple ".png" images at the given path.
-func (s *Screen) SavePreview(dst string) error {
-	areas, monitor, err := s.capture()
+func (s *Screen) Capture() error {
+	monitorImage, err := screenshot.CaptureRect(s.ImageData.Borders)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(dst, 0755); err != nil {
-		return err
-	}
-
-	err = saveArea(filepath.Join(dst, "monitor.png"), monitor)
-	if err != nil {
-		return err
-	}
-
-	for i, a := range areas {
-		err = saveArea(filepath.Join(dst, fmt.Sprintf("area%d.png", i)), a)
-		if err != nil {
-			return err
-		}
-	}
+	s.captureImage = monitorImage
 
 	return nil
 }
 
-func saveArea(dst string, area *image.RGBA) error {
-	outputFile, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
+func (d *ImageData) GetImage() (*image.RGBA, error) {
 
-	err = png.Encode(outputFile, area)
-	if err != nil {
-		return err
+	monitorImage := *d.image
+	if monitorImage == &NO_IMAGE {
+		return nil, fmt.Errorf("no image data, capture screen first")
 	}
+	return monitorImage.SubImage(d.Borders).(*image.RGBA), nil
 
-	return outputFile.Close()
 }
 
-func averageRGBA(area *image.RGBA, space int, threshold int) (color.RGBA, error) {
+func (d *ImageData) GetColor() (color.RGBA, error) {
+	var computedColor color.RGBA
+	image, err := d.GetImage()
+	if err != nil {
+		return computedColor, err
+	}
+	if d.color != nil {
+		return *d.color, nil
+	}
 	var r uint64
 	var g uint64
 	var b uint64
 
 	var count uint64 = 1
 
+	space := d.config.Spacing
+	threshold := d.config.Threshold
 	if space < 1 {
-		return color.RGBA{}, fmt.Errorf("invalid spacing for averaging (%v)", space)
+		return computedColor, fmt.Errorf("invalid spacing for averaging (%v)", space)
 	}
 	if threshold < 0 || threshold > 255 {
-		return color.RGBA{}, fmt.Errorf("invalid threshold for averaging (%v)", threshold)
+		return computedColor, fmt.Errorf("invalid threshold for averaging (%v)", threshold)
 	}
 
-	for x := area.Rect.Min.X; x < area.Rect.Max.X; x = x + space {
-		for y := area.Rect.Min.Y; y < area.Rect.Max.Y; y = y + space {
-			pixel := color.RGBAModel.Convert(area.At(x, y)).(color.RGBA)
+	for x := image.Rect.Min.X; x < image.Rect.Max.X; x = x + space {
+		for y := image.Rect.Min.Y; y < image.Rect.Max.Y; y = y + space {
+			pixel := color.RGBAModel.Convert(image.At(x, y)).(color.RGBA)
 			lr := pixel.R
 			lg := pixel.G
 			lb := pixel.B
@@ -151,10 +121,12 @@ func averageRGBA(area *image.RGBA, space int, threshold int) (color.RGBA, error)
 		}
 	}
 
-	return color.RGBA{
+	computedColor = color.RGBA{
 		R: uint8(r / count),
 		G: uint8(g / count),
 		B: uint8(b / count),
 		A: 255,
-	}, nil
+	}
+
+	return computedColor, nil
 }

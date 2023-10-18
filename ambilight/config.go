@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/bauersimon/ScreenToArtNet/capture"
 	"github.com/bauersimon/ScreenToArtNet/dmx"
 )
 
@@ -27,7 +28,7 @@ type rawConfig struct {
 }
 
 // ReadConfig reads the given config file.
-func ReadConfig(configPath string) (areas []*image.Rectangle, universes []*dmx.Universe, mapping Mapping, err error) {
+func ReadConfig(configPath string) (areas []capture.Area, universes []*dmx.Universe, mapping Mapping, err error) {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return nil, nil, nil, err
@@ -48,8 +49,8 @@ func ReadConfig(configPath string) (areas []*image.Rectangle, universes []*dmx.U
 		return nil, nil, nil, err
 	}
 
-	for _, a := range raw.Areas {
-		areas = append(areas, a)
+	for areaName, areaRect := range raw.Areas {
+		areas = append(areas, capture.Area{Name: areaName, ImageData: capture.ImageData{Borders: *areaRect}})
 	}
 
 	universes, err = raw.constructUniverses()
