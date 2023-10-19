@@ -31,7 +31,8 @@ func run() error {
 		Universes:  universes,
 		Mappings:   mapping,
 		Config: ambilight.AmbilightConfiguration{
-			Sleep: *args.Pause,
+			Fps:     *args.Fps,
+			Workers: *args.Workers,
 		},
 	}
 

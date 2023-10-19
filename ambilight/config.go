@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"image"
 	"io/ioutil"
-	"os"
-	"path"
 
 	"github.com/bauersimon/ScreenToArtNet/capture"
 	"github.com/bauersimon/ScreenToArtNet/dmx"
@@ -29,12 +27,8 @@ type rawConfig struct {
 
 // ReadConfig reads the given config file.
 func ReadConfig(configPath string) (areas []capture.Area, universes []*dmx.Universe, mapping Mapping, err error) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, nil, nil, err
-	}
 
-	data, err := ioutil.ReadFile(path.Join(cwd, configPath))
+	data, err := ioutil.ReadFile(configPath)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -50,7 +44,7 @@ func ReadConfig(configPath string) (areas []capture.Area, universes []*dmx.Unive
 	}
 
 	for areaName, areaRect := range raw.Areas {
-		areas = append(areas, capture.Area{Name: areaName, ImageData: capture.ImageData{Borders: *areaRect}})
+		areas = append(areas, capture.Area{Name: areaName, ImageData: capture.ImageData{Borders: areaRect}})
 	}
 
 	universes, err = raw.constructUniverses()

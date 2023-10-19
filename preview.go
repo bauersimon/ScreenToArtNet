@@ -28,6 +28,7 @@ func preview() error {
 		return err
 	}
 	// save monitor image
+	s.ImageData.Update()
 	monitorImage, err := s.ImageData.GetImage()
 	if err != nil {
 		return err
@@ -39,6 +40,7 @@ func preview() error {
 
 	// save area images
 	for _, a := range s.Areas {
+		a.ImageData.Update()
 		areaImage, err := a.ImageData.GetImage()
 		if err != nil {
 			return err

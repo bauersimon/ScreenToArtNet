@@ -18,8 +18,10 @@ func BenchmarkCapture(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				s := getScreen(space)
 				s.Capture()
+				s.ImageData.Update()
 				s.ImageData.GetImage()
 				for _, area := range s.Areas {
+					area.ImageData.Update()
 					area.ImageData.GetImage()
 					area.ImageData.GetColor()
 				}
@@ -41,7 +43,7 @@ func getScreen(space int) *Screen {
 	area := Area{
 		Name: "bla",
 		ImageData: ImageData{
-			Borders: image.Rectangle{
+			Borders: &image.Rectangle{
 				Min: image.Point{0, 0},
 				Max: image.Point{800, 600},
 			}},

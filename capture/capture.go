@@ -26,10 +26,11 @@ type Area struct {
 }
 
 type ImageData struct {
-	config  imageDataConfig
-	image   **image.RGBA
-	color   *color.RGBA
-	Borders image.Rectangle
+	config      imageDataConfig
+	parentImage **image.RGBA
+	subImage    *image.RGBA
+	color       *color.RGBA
+	Borders     *image.Rectangle
 }
 
 // NewScreen returns a new screen, tiled with the given configuration.
@@ -42,22 +43,24 @@ func NewScreen(areas []Area, config CaptureConfig) *Screen {
 
 	// init monitor image data with pointer to capture
 	screen.ImageData = ImageData{
-		config:  config.imageDataConfig,
-		image:   &screen.captureImage,
-		Borders: screenshot.GetDisplayBounds(config.Monitor),
+		config:      config.imageDataConfig,
+		parentImage: &screen.captureImage,
 	}
 
 	// init area image data with pointer to capture
+	borderUnion := image.Rect(0, 0, 0, 0)
 	for i := range areas {
+		borderUnion = borderUnion.Union(*areas[i].ImageData.Borders)
 		areas[i].ImageData.config = config.imageDataConfig
-		areas[i].ImageData.image = &screen.captureImage
+		areas[i].ImageData.parentImage = &screen.captureImage
 	}
+	screen.ImageData.Borders = &borderUnion
 
 	return &screen
 }
 
 func (s *Screen) Capture() error {
-	monitorImage, err := screenshot.CaptureRect(s.ImageData.Borders)
+	monitorImage, err := screenshot.CaptureRect(*s.ImageData.Borders)
 	if err != nil {
 		return err
 	}
@@ -67,25 +70,48 @@ func (s *Screen) Capture() error {
 	return nil
 }
 
+func (d *ImageData) Update() error {
+	err := d.updateImage()
+	if err != nil {
+		return err
+	}
+	return d.updateColor()
+}
+
 func (d *ImageData) GetImage() (*image.RGBA, error) {
 
-	monitorImage := *d.image
-	if monitorImage == &NO_IMAGE {
-		return nil, fmt.Errorf("no image data, capture screen first")
+	if d.subImage == nil {
+		return nil, fmt.Errorf("no image data, update first")
 	}
-	return monitorImage.SubImage(d.Borders).(*image.RGBA), nil
+	return d.subImage, nil
 
 }
 
-func (d *ImageData) GetColor() (color.RGBA, error) {
+func (d *ImageData) GetColor() (*color.RGBA, error) {
+
+	if d.color == nil {
+		return nil, fmt.Errorf("no color data, update first")
+	}
+	return d.color, nil
+
+}
+
+func (d *ImageData) updateImage() error {
+	monitorImage := *d.parentImage
+	if monitorImage == &NO_IMAGE {
+		return fmt.Errorf("no image data, capture screen first")
+	}
+	d.subImage = monitorImage.SubImage(*d.Borders).(*image.RGBA)
+	return nil
+}
+
+func (d *ImageData) updateColor() error {
 	var computedColor color.RGBA
 	image, err := d.GetImage()
 	if err != nil {
-		return computedColor, err
+		return err
 	}
-	if d.color != nil {
-		return *d.color, nil
-	}
+
 	var r uint64
 	var g uint64
 	var b uint64
@@ -95,10 +121,10 @@ func (d *ImageData) GetColor() (color.RGBA, error) {
 	space := d.config.Spacing
 	threshold := d.config.Threshold
 	if space < 1 {
-		return computedColor, fmt.Errorf("invalid spacing for averaging (%v)", space)
+		return fmt.Errorf("invalid spacing for averaging (%v)", space)
 	}
 	if threshold < 0 || threshold > 255 {
-		return computedColor, fmt.Errorf("invalid threshold for averaging (%v)", threshold)
+		return fmt.Errorf("invalid threshold for averaging (%v)", threshold)
 	}
 
 	for x := image.Rect.Min.X; x < image.Rect.Max.X; x = x + space {
@@ -128,5 +154,6 @@ func (d *ImageData) GetColor() (color.RGBA, error) {
 		A: 255,
 	}
 
-	return computedColor, nil
+	d.color = &computedColor
+	return nil
 }
