@@ -26,7 +26,7 @@ type Area struct {
 }
 
 type ImageData struct {
-	config      imageDataConfig
+	config      ImageDataConfig
 	parentImage **image.RGBA
 	subImage    *image.RGBA
 	color       *color.RGBA
@@ -43,7 +43,7 @@ func NewScreen(areas []Area, config CaptureConfig) *Screen {
 
 	// init monitor image data with pointer to capture
 	screen.ImageData = ImageData{
-		config:      config.imageDataConfig,
+		config:      config.ImageDataConfig,
 		parentImage: &screen.captureImage,
 	}
 
@@ -51,7 +51,7 @@ func NewScreen(areas []Area, config CaptureConfig) *Screen {
 	borderUnion := image.Rect(0, 0, 0, 0)
 	for i := range areas {
 		borderUnion = borderUnion.Union(*areas[i].ImageData.Borders)
-		areas[i].ImageData.config = config.imageDataConfig
+		areas[i].ImageData.config = config.ImageDataConfig
 		areas[i].ImageData.parentImage = &screen.captureImage
 	}
 	screen.ImageData.Borders = &borderUnion

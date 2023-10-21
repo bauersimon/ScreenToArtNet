@@ -33,7 +33,7 @@ func BenchmarkCapture(b *testing.B) {
 func getScreen(space int) *Screen {
 
 	config := CaptureConfig{
-		imageDataConfig: imageDataConfig{
+		ImageDataConfig: ImageDataConfig{
 			Spacing:   space,
 			Threshold: 0,
 		},

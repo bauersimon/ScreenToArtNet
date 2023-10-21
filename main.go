@@ -5,11 +5,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/bauersimon/ScreenToArtNet/config"
 )
 
-var args config.Args
+var args Args
 
 func handleInterrupts() {
 	// Make sure we clean everything up.
@@ -45,9 +43,9 @@ func handleError(err error) {
 }
 
 func main() {
-	args = config.Parse()
+	args = Parse()
 
-	if !config.Validate() {
+	if !args.Validate() {
 		os.Exit(-1)
 	}
 

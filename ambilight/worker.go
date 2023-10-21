@@ -2,7 +2,7 @@ package ambilight
 
 type workerPool struct {
 	inputChannel chan job
-	size         int
+	size         uint
 }
 
 type queue []func()
@@ -26,10 +26,11 @@ type job struct {
 	task        func()
 }
 
-func newWorkerPool(size int) workerPool {
+func newWorkerPool(size uint) workerPool {
 	inputChannel := make(chan job)
 	wp := workerPool{inputChannel: inputChannel, size: size}
-	for i := 0; i < size; i++ {
+	var i uint
+	for i = 0; i < size; i++ {
 		go spawnWorker(inputChannel)
 	}
 	return wp
@@ -41,7 +42,8 @@ func (w *workerPool) workOn(taskQueue queue) {
 
 	for {
 		jobsTaken := 0
-		for i := 0; i < w.size; i++ {
+		var i uint
+		for i = 0; i < w.size; i++ {
 			if taskQueue.isEmpty() {
 				break
 			}
