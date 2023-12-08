@@ -1,4 +1,4 @@
-I don't have the equipment anymore to maintain this project. Please have a look at [https://github.com/tuffnerdstuff/ScreenToArtNet](tuffnerdstuff)'s fork, who took the time to address some of the remaining issues.
+I don't have the equipment anymore to maintain this project. Please have a look at [tuffnerdstuff](https://github.com/tuffnerdstuff/ScreenToArtNet)'s fork, who kindly invested some time to address some of the open issues.
 
 ---
 
