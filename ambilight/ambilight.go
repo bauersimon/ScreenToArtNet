@@ -25,8 +25,10 @@ type Ambilight struct {
 
 // AmbilightConfiguration holds the configuration for the ambilight.
 type AmbilightConfiguration struct {
-	// Sleep holds the sleep time after each update in ms.
-	Sleep int
+	// target frames per second
+	Fps uint
+	// max number of worker threads
+	Workers uint
 }
 
 // Go fires up the ambilight.
@@ -35,37 +37,36 @@ func (a *Ambilight) Go() error {
 	iter := 0
 	maxIter := 10
 	start := time.Now()
+	frameDurationTarget := time.Duration(1000/a.Config.Fps) * time.Millisecond
+
+	// Create worker pool that can perform as many tasks as possible, given the allowed workers
+	maxParallelTasks := max(uint(len(a.Screen.Areas)), uint(len(a.Universes)))
+	workerPool := newWorkerPool(min(a.Config.Workers, maxParallelTasks))
 
 	for {
-		colors, err := a.Screen.GetColors()
+		frameStart := time.Now()
+		err := a.Screen.Capture()
 		if err != nil {
 			panic(err)
 		}
 
-		for i, c := range colors {
-			devices, ok := a.Mappings[a.Screen.Areas[i]]
-			if !ok {
-				// This area has no devices mapped.
-				continue
-			}
-
-			for _, d := range devices {
-				d.RValue = c.R
-				d.GValue = c.G
-				d.BValue = c.B
-			}
+		var colorJobs queue
+		for _, area := range a.Screen.Areas {
+			colorJobs.enqueue(getColorJob(a, area))
 		}
+		workerPool.workOn(colorJobs)
 
+		var networkJobs queue
 		for _, u := range a.Universes {
-			err := u.SendColorUpdate(a.Controller)
-			if err != nil {
-				return err
-			}
-		}
+			networkJobs.enqueue(func() {
 
-		if a.Config.Sleep > 0 {
-			time.Sleep(time.Duration(a.Config.Sleep) * time.Millisecond)
+				err := u.SendColorUpdate(a.Controller)
+				if err != nil {
+					panic(err)
+				}
+			})
 		}
+		workerPool.workOn(networkJobs)
 
 		// Handle the performance display
 		if iter == maxIter {
@@ -79,7 +80,47 @@ func (a *Ambilight) Go() error {
 		} else {
 			iter++
 		}
+
+		frameDurationCurrent := time.Since(frameStart)
+		timeToSleep := frameDurationTarget - frameDurationCurrent
+		time.Sleep(timeToSleep)
 	}
+}
+
+func getColorJob(a *Ambilight, area capture.Area) func() {
+	devices, ok := a.Mappings[area.ImageData.Borders]
+	if !ok {
+		// This area has no devices mapped.
+		return func() {}
+	}
+
+	return func() {
+		area.ImageData.Update()
+		areaColor, err := area.ImageData.GetColor()
+		if err != nil {
+			panic(err)
+		}
+		for _, d := range devices {
+			d.RValue = areaColor.R
+			d.GValue = areaColor.G
+			d.BValue = areaColor.B
+		}
+	}
+
+}
+
+func min(a uint, b uint) uint {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a uint, b uint) uint {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // Mapping holds a mapping from screen areas to DMX devices.
